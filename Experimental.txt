@@ -1,0 +1,77 @@
+import io
+import os
+import time
+import win32api
+from PIL import Image
+from docx import Document
+from docx.shared import Inches
+from PyPDF2 import PdfFileMerger
+
+def place_photo_on_template(photo_data, template_data, output_path):
+
+    photo = Image.open(io.BytesIO(photo_data))
+    doc = Document(io.BytesIO(template_data))
+
+    photo.thumbnail((500, 750))
+
+    table = doc.tables[0]
+    cell = table.cell(0, 0)
+    cell.text = ""
+
+    run = cell.paragraphs[0].add_run()
+    run.add_picture(photo_data, width=Inches(4.7), height=Inches(3.6))
+
+    left = Inches(2.5)
+    top = Inches(1.2)
+    photo.left = int(left * 9525)
+    photo.top = int(top * 9525)
+
+    output_data = io.BytesIO()
+    doc.save(output_data)
+
+    return output_data.getvalue()
+
+
+def monitor_folder(folder_path, template_path, output_folder):
+    processed_files = set()
+
+    while True:
+        files = os.listdir(folder_path)
+
+        for file in files:
+            file_path = os.path.join(folder_path, file)
+            if os.path.isfile(file_path):
+                file_ext = os.path.splitext(file_path)[1].lower()
+                if file_ext in ['.jpg', '.jpeg', '.png']:
+
+                    if file_path not in processed_files:
+                        with open(file_path, "rb") as f:
+                            photo_data = f.read()
+
+                        with open(template_path, "rb") as f:
+                            template_data = f.read()
+
+                        output_data = place_photo_on_template(photo_data, template_data, output_path)
+
+                        with open(os.path.join(output_folder, f"output_{file}.docx"), "wb") as f:
+                            f.write(output_data)
+
+                        processed_files.add(file_path)
+                        print(f"Yeni bir fotoğraf işlendi: {file_path}")
+
+        time.sleep(1)
+
+
+def main():
+    folder_path = r"C:\Users\Acer\PycharmProjects\baski\photo"
+    template_path = r"C:\Users\Acer\PycharmProjects\baski\template\template1.docx"
+    output_folder = "output_folder"
+
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    monitor_folder(folder_path, template_path, output_folder)
+
+
+if __name__ == '__main__':
+    main()
